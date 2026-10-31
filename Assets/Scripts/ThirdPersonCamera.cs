@@ -1,5 +1,4 @@
-
-using UnityEngine;
+﻿using UnityEngine;
 
 public class ThirdPersonCamera : MonoBehaviour
 {
@@ -14,8 +13,20 @@ public class ThirdPersonCamera : MonoBehaviour
     [SerializeField] private float minPitch = -30f;
     [SerializeField] private float maxPitch = 70f;
 
+    [Header("Camera Collision")]
+    [SerializeField] private LayerMask collisionMask;
+    [SerializeField] private float cameraRadius = 0.2f;
+    [SerializeField] private float collisionOffset = 0.1f;
+    [SerializeField] private float cameraSmooth = 12f;
+
     private float yaw;
     private float pitch = 20f;
+    private float currentDistance;
+
+    private void Awake()
+    {
+        currentDistance = distance;
+    }
 
     private void LateUpdate()
     {
@@ -38,9 +49,39 @@ public class ThirdPersonCamera : MonoBehaviour
     {
         if (target == null) return;
 
-        Quaternion rotation = Quaternion.Euler(pitch, yaw, 0);
+        Quaternion rotation = Quaternion.Euler(pitch, yaw, 0f);
+
         Vector3 targetPosition = target.position + Vector3.up * height;
-        transform.position = targetPosition - rotation * Vector3.forward * distance;
+        Vector3 direction = -(rotation * Vector3.forward);
+
+        float targetDistance = distance;
+
+        if (Physics.SphereCast(
+            targetPosition,
+            cameraRadius,
+            direction,
+            out RaycastHit hit,
+            distance,
+            collisionMask,
+            QueryTriggerInteraction.Ignore))
+        {
+            targetDistance = Mathf.Max(0f, hit.distance - collisionOffset);
+        }
+
+        if (targetDistance < currentDistance)
+        {
+            currentDistance = targetDistance;
+        }
+        else
+        {
+            currentDistance = Mathf.Lerp(
+                currentDistance,
+                targetDistance,
+                cameraSmooth * Time.deltaTime
+            );
+        }
+
+        transform.position = targetPosition + direction * currentDistance;
         transform.rotation = rotation;
     }
 }
